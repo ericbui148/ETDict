@@ -9,7 +9,7 @@
 
 enum ETDictType
   {
-   ET_UNDEF, ET_NULL, ET_BOOL, ET_INT, ET_LONG, ET_DOUBLE, ET_STRING, ET_ARRAY, ET_OBJ
+   ET_UNDEF, ET_NULL, ET_BOOL, ET_INT, ET_LONG, ET_DATETIME, ET_DOUBLE, ET_FLOAT, ET_STRING, ET_ARRAY, ET_OBJ
   };
 
 //+------------------------------------------------------------------+
@@ -24,10 +24,14 @@ protected:
    ETDict            *m_parent;
    ETDictType        m_type;
    bool              m_bv;
-   long              m_iv;
+   long              m_lv;
+   int               m_iv;
+   datetime          m_dtv;
    double            m_dv;
+   float             m_fv;
    int               m_prec;
    string            m_sv;
+   void              Clear(ETDictType jt = ET_UNDEF, bool savekey = false);
 public:
    static int        code_page;
                      ETDict();
@@ -35,11 +39,12 @@ public:
                      ETDict(ETDictType t, string a);
                      ETDict(const int a);
                      ETDict(const long a);
+                     ETDict(const datetime a);
                      ETDict(const double a, int aprec = -100);
+                     ETDict(const float a, int aprec = -100);
                      ETDict(const bool a);
                      ETDict(const ETDict &a);
                     ~ETDict();
-   void              Clear(ETDictType jt = ET_UNDEF, bool savekey = false);
    bool              Copy(const ETDict &a);
    void              CopyData(const ETDict &a);
    void              CopyArr(const ETDict &a);
@@ -52,22 +57,30 @@ public:
    void              operator=(const ETDict &a);
    void              operator=(const int a);
    void              operator=(const long a);
+   void              operator=(const datetime a);
    void              operator=(const double a);
+   void              operator=(const float a);
    void              operator=(const bool a);
    void              operator=(string a);
    bool              operator==(const int a);
    bool              operator==(const long a);
+   bool              operator==(const datetime a);
    bool              operator==(const double a);
+   bool              operator==(const float a);
    bool              operator==(const bool a);
    bool              operator==(string a);
    bool              operator!=(const int a);
    bool              operator!=(const long a);
+   bool              operator!=(const datetime a);
    bool              operator!=(const double a);
+   bool              operator!=(const float a);
    bool              operator!=(const bool a);
    bool              operator!=(string a);
    int               ToInt() const;
    long              ToLong() const;
+   datetime          ToDatetime() const;
    double            ToDouble() const;
+   double            ToFloat() const;
    bool              ToBool() const;
    string            ToStr();
 
@@ -131,7 +144,10 @@ ETDict::ETDict(const int a)
    Clear();
    m_type = ET_INT;
    m_iv = a;
+   m_lv = (long)m_iv;
+   m_dtv = (datetime)m_iv;
    m_dv = (double) m_iv;
+   m_fv = (float) m_iv;
    m_sv = IntegerToString(m_iv);
    m_bv = m_iv != 0;
   }
@@ -143,12 +159,29 @@ ETDict::ETDict(const long a)
   {
    Clear();
    m_type = ET_LONG;
-   m_iv = a;
-   m_dv = (double) m_iv;
+   m_lv = a;
+   m_iv = (int)a;
+   m_dtv = (datetime)m_iv;
+   m_dv = (double)m_iv;
+   m_fv = (float)m_iv;
    m_sv = IntegerToString(m_iv);
    m_bv = m_iv != 0;
   }
-
+//+------------------------------------------------------------------+
+//| Constructor                                                      |
+//+------------------------------------------------------------------+
+ETDict::ETDict(const datetime a)
+  {
+   Clear();
+   m_type = ET_DATETIME;
+   m_dtv = m_iv;
+   m_iv = (int)a;
+   m_lv = (long)m_iv;
+   m_dv = (double)m_iv;
+   m_fv = (float)m_iv;
+   m_sv = IntegerToString(m_iv);
+   m_bv = m_iv != 0;
+  }
 //+------------------------------------------------------------------+
 //| Constructor                                                      |
 //+------------------------------------------------------------------+
@@ -157,9 +190,28 @@ ETDict::ETDict(const double a, int aprec = -100)
    Clear();
    m_type = ET_DOUBLE;
    m_dv = a;
+   m_fv = (float)m_dv;
    if(aprec > -100)
       m_prec = aprec;
-   m_iv = (long) m_dv;
+   m_iv = (int) m_dv;
+   m_lv = (long) m_dv;
+   m_sv = DoubleToString(m_dv, m_prec);
+   m_bv = m_iv != 0;
+  }
+//+------------------------------------------------------------------+
+//| Constructor                                                      |
+//+------------------------------------------------------------------+
+ETDict::ETDict(const float a, int aprec = -100)
+  {
+   Clear();
+   m_type = ET_FLOAT;
+   m_fv = a;
+   if(aprec > -100)
+      m_prec = aprec;
+   m_dv = (double)a;
+   m_iv = (int)m_dv;
+   m_lv = (long)m_dv;
+   m_dtv = (datetime)m_dv;
    m_sv = DoubleToString(m_dv, m_prec);
    m_bv = m_iv != 0;
   }
@@ -173,6 +225,8 @@ ETDict::ETDict(const bool a)
    m_type = ET_BOOL;
    m_bv = a;
    m_iv = m_bv;
+   m_lv = (long)m_iv;
+   m_dtv = (datetime)m_iv;
    m_dv = m_bv;
    m_sv = IntegerToString(m_iv);
   }
@@ -204,7 +258,10 @@ void ETDict::Clear(ETDictType jt = ET_UNDEF, bool savekey = false)
    m_type = jt;
    m_bv = false;
    m_iv = 0;
+   m_lv = 0;
+   m_dtv = 0;
    m_dv = 0;
+   m_fv = 0;
    m_prec = 8;
    m_sv = "";
    ArrayResize(m_e, 0, 100);
@@ -228,7 +285,10 @@ void ETDict::CopyData(const ETDict &a)
    m_type = a.m_type;
    m_bv = a.m_bv;
    m_iv = a.m_iv;
+   m_lv = a.m_lv;
+   m_dtv = a.m_dtv;
    m_dv = a.m_dv;
+   m_fv = a.m_fv;
    m_prec = a.m_prec;
    m_sv = a.m_sv;
    CopyArr(a);
@@ -260,7 +320,7 @@ int ETDict::Size()
 //+------------------------------------------------------------------+
 bool ETDict::IsNumeric()
   {
-   return m_type == ET_DOUBLE || m_type == ET_INT;
+   return m_type == ET_DOUBLE || m_type == ET_FLOAT || m_type == ET_INT || m_type == ET_LONG;
   }
 
 //+------------------------------------------------------------------+
@@ -305,8 +365,12 @@ void ETDict::operator=(const int a)
   {
    m_type = ET_INT;
    m_iv = a;
+   m_lv = (long)m_iv;
+   m_dtv = (datetime)m_iv;
    m_dv = (double) m_iv;
+   m_fv = (float) m_iv;
    m_bv = m_iv != 0;
+   m_sv = IntegerToString(m_lv);
   }
 
 //+------------------------------------------------------------------+
@@ -315,9 +379,13 @@ void ETDict::operator=(const int a)
 void ETDict::operator=(const long a)
   {
    m_type = ET_LONG;
-   m_iv = a;
+   m_lv = a;
+   m_iv = (int)m_lv;
+   m_dtv = (datetime)m_iv;
    m_dv = (double) m_iv;
+   m_fv = (float) m_iv;
    m_bv = m_iv != 0;
+   m_sv = IntegerToString(m_lv);
   }
 
 //+------------------------------------------------------------------+
@@ -327,8 +395,12 @@ void ETDict::operator=(const double a)
   {
    m_type = ET_DOUBLE;
    m_dv = a;
-   m_iv = (long) m_dv;
+   m_fv = (float)m_dv;
+   m_iv = (int) m_dv;
+   m_lv = (long)m_iv;
+   m_dtv = (datetime)m_iv;
    m_bv = m_iv != 0;
+   m_sv = IntegerToString(m_lv);
   }
 
 //+------------------------------------------------------------------+
@@ -338,8 +410,12 @@ void ETDict::operator=(const bool a)
   {
    m_type = ET_BOOL;
    m_bv = a;
-   m_iv = (long) m_bv;
+   m_iv = (int) m_bv;
+   m_lv = (long)m_iv;
+   m_dtv = (datetime)m_iv;
    m_dv = (double) m_bv;
+   m_fv = (float)m_dv;
+   m_sv = IntegerToString(m_lv);
   }
 
 //+------------------------------------------------------------------+
@@ -349,8 +425,11 @@ void ETDict::operator=(string a)
   {
    m_type = (a != NULL) ? ET_STRING : ET_NULL;
    m_sv = a;
-   m_iv = StringToInteger(m_sv);
+   m_lv = StringToInteger(m_sv);
+   m_iv = (int)m_lv;
    m_dv = StringToDouble(m_sv);
+   m_fv = (float)m_dv;
+   m_dtv = StringToTime(a);
    m_bv = a != NULL;
   }
 
@@ -373,11 +452,27 @@ bool ETDict::operator==(const long a)
 //+------------------------------------------------------------------+
 //|  Operator ==                                                     |
 //+------------------------------------------------------------------+
+bool ETDict::operator==(const datetime a)
+  {
+   return m_dtv == a;
+  }
+  
+//+------------------------------------------------------------------+
+//|  Operator ==                                                     |
+//+------------------------------------------------------------------+
 bool ETDict::operator==(const double a)
   {
    return m_dv == a;
   }
 
+//+------------------------------------------------------------------+
+//|  Operator ==                                                     |
+//+------------------------------------------------------------------+
+bool ETDict::operator==(const float a)
+  {
+   return m_fv == a;
+  }
+  
 //+------------------------------------------------------------------+
 //|  Operator ==                                                     |
 //+------------------------------------------------------------------+
@@ -407,9 +502,17 @@ bool ETDict::operator!=(const int a)
 //+------------------------------------------------------------------+
 bool ETDict::operator!=(const long a)
   {
-   return m_iv != a;
+   return m_lv != a;
   }
-
+  
+//+------------------------------------------------------------------+
+//|  Operator !=                                                     |
+//+------------------------------------------------------------------+
+bool ETDict::operator!=(const datetime a)
+  {
+   return m_dtv != a;
+  }
+  
 //+------------------------------------------------------------------+
 //| Operator !=                                                      |
 //+------------------------------------------------------------------+
@@ -418,6 +521,14 @@ bool ETDict::operator!=(const double a)
    return m_dv != a;
   }
 
+//+------------------------------------------------------------------+
+//| Operator !=                                                      |
+//+------------------------------------------------------------------+
+bool ETDict::operator!=(const float a)
+  {
+   return m_fv != a;
+  }
+  
 //+------------------------------------------------------------------+
 //| Operator !=                                                      |
 //+------------------------------------------------------------------+
@@ -439,7 +550,7 @@ bool ETDict::operator!=(string a)
 //+------------------------------------------------------------------+
 int ETDict::ToInt() const
   {
-   return m_iv;
+   return (int)m_iv;
   }
 //+------------------------------------------------------------------+
 //| To Long                                                          |
@@ -448,6 +559,15 @@ long ETDict::ToLong() const
   {
    return m_iv;
   }
+  
+//+------------------------------------------------------------------+
+//| To Datetime                                                      |
+//+------------------------------------------------------------------+
+datetime ETDict::ToDatetime() const
+  {
+   return m_dtv;
+  }
+    
 //+------------------------------------------------------------------+
 //| To Double                                                        |
 //+------------------------------------------------------------------+
@@ -456,6 +576,14 @@ double ETDict::ToDouble() const
    return m_dv;
   }
 
+//+------------------------------------------------------------------+
+//| To Float                                                         |
+//+------------------------------------------------------------------+
+double ETDict::ToFloat() const
+  {
+   return m_fv;
+  }
+  
 //+------------------------------------------------------------------+
 //| To Bool                                                          |
 //+------------------------------------------------------------------+
@@ -481,27 +609,48 @@ void ETDict::FromStr(ETDictType t, string a)
      {
       case ET_BOOL:
          m_bv = (StringToInteger(a) != 0);
-         m_iv = (long) m_bv;
-         m_dv = (double) m_bv;
+         m_iv = (int) m_bv;
+         m_lv = (long) m_iv;
+         m_dtv = (datetime) m_iv;
+         m_dv = (double) m_iv;
+         m_fv = (float) m_iv;
          m_sv = a;
          break;
       case ET_INT:
-         m_iv = StringToInteger(a);
+         m_lv = StringToInteger(a);
+         m_iv = (int)m_lv;
+         m_dtv = (datetime) m_iv;
          m_dv = (double) m_iv;
+         m_fv = (float) m_iv;
          m_sv = a;
          m_bv = m_iv != 0;
          break;
+      case ET_LONG:
+         m_lv = StringToInteger(a);
+         m_iv = (int) m_iv;
+         m_dtv = (datetime) m_iv;
+         m_dv = (double) m_iv;
+         m_fv = (float) m_iv;
+         m_sv = a;
+         m_bv = m_iv != 0;
+         break;         
       case ET_DOUBLE:
          m_dv = StringToDouble(a);
-         m_iv = (long) m_dv;
+         m_fv = (float)m_dv;
+         m_iv = (int) m_dv;
+         m_lv = (long) m_dv;
+         m_dtv = (datetime) m_iv;
          m_sv = a;
          m_bv = m_iv != 0;
          break;
       case ET_STRING:
          m_sv = Unescape(a);
          m_type = (m_sv != NULL) ? ET_STRING : ET_NULL;
-         m_iv = StringToInteger(m_sv);
+         m_lv = StringToInteger(m_sv);
+         m_iv = (int)m_lv;
+         m_dtv = StringToTime(m_sv);
          m_dv = StringToDouble(m_sv);
+         m_fv = (float)m_dv;
          m_bv = m_sv != NULL;
          break;
      }
@@ -632,6 +781,7 @@ string ETDict::Serialize()
 //+------------------------------------------------------------------+
 bool ETDict::Deserialize(string js, int acp = CP_ACP)
   {
+   js = Unescape(js);
    int i = 0;
    Clear();
    ETDict::code_page = acp;
@@ -859,6 +1009,7 @@ bool ETDict::Deserialize(char &js[], int slen, int &i)
                Print(m_key + " " + string(__LINE__));
                return false;
               }
+            if (ArraySize(js) < i + 1) ArrayResize(js, i+1);
             return js[i] == '}' || js[i] == 0;
             break;
          case '}':
@@ -947,14 +1098,20 @@ bool ETDict::Deserialize(char &js[], int slen, int &i)
               {
                m_type = ET_DOUBLE;
                m_dv = StringToDouble(m_sv);
-               m_iv = (long) m_dv;
+               m_fv = (float)m_dv;
+               m_iv = (int) m_dv;
+               m_lv = (long)m_iv;
+               m_dtv = StringToTime(m_sv);
                m_bv = m_iv != 0;
               }
             else
               {
                m_type = ET_INT;
-               m_iv = StringToInteger(m_sv);
+               m_lv = StringToInteger(m_sv);
+               m_iv = (int)m_lv;
+               m_dtv = StringToTime(m_sv);
                m_dv = (double) m_iv;
+               m_fv = (float)m_iv;
                m_bv = m_iv != 0;
               }
             break;
